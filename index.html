@@ -1,7 +1,139 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Network Traffic Time Series</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f9f9f9;
+    }
+    h2 {
+      text-align: center;
+    }
+    #chart-container {
+      width: 100%;
+      max-width: 1200px;
+      margin: auto;
+    }
+    canvas {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+  </style>
+</head>
 <body>
-<h1>Hello World</h1>
-<p>I'm hosted with GitHub Pages.</p>
+  <h2>📊 Network Traffic (Main vs Previous Week)</h2>
+  <div id="chart-container">
+    <canvas id="trafficChart"></canvas>
+  </div>
+
+  <script>
+    const API_URL = 'https://<your-worker-subdomain>.workers.dev'; // <-- Replace with your Cloudflare Worker URL
+
+    async function fetchData() {
+      const response = await fetch(API_URL);
+      const json = await response.json();
+
+      const main = json.result.main;
+      const previous = json.result.previous;
+
+      return {
+        timestamps: main.timestamps.map(ts => new Date(ts)),
+        mainValues: main.values.map(v => parseFloat(v)),
+        prevValues: previous.values.map(v => parseFloat(v))
+      };
+    }
+
+    async function renderChart() {
+      const data = await fetchData();
+
+      const ctx = document.getElementById('trafficChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: data.timestamps,
+          datasets: [
+            {
+              label: 'Main',
+              data: data.mainValues,
+              borderColor: '#007bff',
+              backgroundColor: 'rgba(0,123,255,0.1)',
+              tension: 0.2,
+              pointRadius: 0,
+              fill: true
+            },
+            {
+              label: 'Previous',
+              data: data.prevValues,
+              borderColor: '#ff6f00',
+              backgroundColor: 'rgba(255,111,0,0.1)',
+              tension: 0.2,
+              pointRadius: 0,
+              fill: true
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: {
+              type: 'time',
+              time: {
+                unit: 'hour',
+                tooltipFormat: 'MMM d, h a'
+              },
+              title: {
+                display: true,
+                text: 'Time'
+              }
+            },
+            y: {
+              title: {
+                display: true,
+                text: 'Normalized Value'
+              }
+            }
+          },
+          plugins: {
+            title: {
+              display: false
+            },
+            tooltip: {
+              mode: 'index',
+              intersect: false
+            },
+            zoom: {
+              pan: {
+                enabled: true,
+                mode: 'x'
+              },
+              zoom: {
+                wheel: {
+                  enabled: true
+                },
+                pinch: {
+                  enabled: true
+                },
+                mode: 'x'
+              }
+            }
+          },
+          interaction: {
+            mode: 'nearest',
+            axis: 'x',
+            intersect: false
+          }
+        }
+      });
+    }
+
+    renderChart();
+  </script>
 </body>
 </html>
