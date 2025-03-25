@@ -9,17 +9,23 @@
     body {
       font-family: Arial, sans-serif;
       padding: 20px;
-      background: #f9f9f9;
+      background: #f4f4f4;
     }
+
     h2 {
       text-align: center;
     }
+
     #chart-container {
       width: 100%;
       max-width: 1200px;
+      height: 500px;
       margin: auto;
     }
+
     canvas {
+      width: 100% !important;
+      height: 100% !important;
       background: white;
       border-radius: 8px;
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
@@ -33,26 +39,39 @@
   </div>
 
   <script>
-    const API_URL = 'https://worker.sysoc.workers.dev'; // <-- Replace with your Cloudflare Worker URL
+    const API_URL = 'https://worker.sysoc.workers.dev'; // <-- replace this
 
     async function fetchData() {
-      const response = await fetch(API_URL);
-      const json = await response.json();
+      try {
+        console.log('Fetching data from:', API_URL);
+        const res = await fetch(API_URL);
+        const json = await res.json();
 
-      const main = json.result.main;
-      const previous = json.result.previous;
+        if (!json?.result?.main?.timestamps || !json?.result?.previous?.values) {
+          throw new Error("Missing expected data structure.");
+        }
 
-      return {
-        timestamps: main.timestamps.map(ts => new Date(ts)),
-        mainValues: main.values.map(v => parseFloat(v)),
-        prevValues: previous.values.map(v => parseFloat(v))
-      };
+        const timestamps = json.result.main.timestamps.map(ts => new Date(ts));
+        const mainValues = json.result.main.values.map(Number);
+        const prevValues = json.result.previous.values.map(Number);
+
+        console.log('Timestamps:', timestamps.length);
+        console.log('Main:', mainValues.length);
+        console.log('Previous:', prevValues.length);
+
+        return { timestamps, mainValues, prevValues };
+      } catch (error) {
+        console.error('Data fetch error:', error);
+        alert('Error loading data. Check console.');
+      }
     }
 
     async function renderChart() {
       const data = await fetchData();
+      if (!data) return;
 
       const ctx = document.getElementById('trafficChart').getContext('2d');
+
       new Chart(ctx, {
         type: 'line',
         data: {
@@ -101,9 +120,6 @@
             }
           },
           plugins: {
-            title: {
-              display: false
-            },
             tooltip: {
               mode: 'index',
               intersect: false
@@ -114,12 +130,8 @@
                 mode: 'x'
               },
               zoom: {
-                wheel: {
-                  enabled: true
-                },
-                pinch: {
-                  enabled: true
-                },
+                wheel: { enabled: true },
+                pinch: { enabled: true },
                 mode: 'x'
               }
             }
